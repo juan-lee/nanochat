@@ -12,6 +12,7 @@ def main():
     p.add_argument("--job-name", default="nanochat-speedrun")
     p.add_argument("--namespace", default=DEFAULT_NS)
     p.add_argument("--image", default="ghcr.io/juan-lee/nanochat:latest")
+    p.add_argument("--image-pull-policy", default="Always")
     p.add_argument("--gpu-count", type=int, default=1)
     p.add_argument("--cpu", default="16")
     p.add_argument("--memory", default="96Gi")
@@ -87,7 +88,7 @@ def main():
                     "containers": [{
                         "name": "speedrun",
                         "image": args.image,
-                        "imagePullPolicy": "Always",
+                        "imagePullPolicy": args.image_pull_policy,
                         "workingDir": "/workspace",
                         "env": env,
                         "command": ["bash", "-lc"],
