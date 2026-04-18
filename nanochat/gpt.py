@@ -1,3 +1,4 @@
+import os
 """
 GPT model (rewrite, a lot simpler)
 Notable features:
