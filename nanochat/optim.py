@@ -8,9 +8,13 @@ Further contributions from @karpathy and @chrisjmccormick.
 """
 
 import torch
+import os
 import torch.distributed as dist
 from torch import Tensor
 from nanochat.common import COMPUTE_DTYPE
+
+DISABLE_FUSED_OPTIM = os.environ.get("NANOCHAT_DISABLE_FUSED_OPTIM", "0") in {"1", "true", "yes"}
+
 
 # -----------------------------------------------------------------------------
 """
@@ -221,12 +225,23 @@ class MuonAdamW(torch.optim.Optimizer):
             self._adamw_eps_t.fill_(group['eps'])
             self._adamw_wd_t.fill_(group['weight_decay'])
 
-            # Fused update: weight_decay -> momentum -> bias_correction -> param_update
-            adamw_step_fused(
-                p, grad, exp_avg, exp_avg_sq,
-                self._adamw_step_t, self._adamw_lr_t, self._adamw_beta1_t,
-                self._adamw_beta2_t, self._adamw_eps_t, self._adamw_wd_t,
-            )
+            if DISABLE_FUSED_OPTIM:
+                beta1, beta2 = group['betas']
+                p.mul_(1 - group['lr'] * group['weight_decay'])
+                exp_avg.lerp_(grad, 1 - beta1)
+                exp_avg_sq.lerp_(grad.square(), 1 - beta2)
+                bias1 = 1 - beta1 ** state['step']
+                bias2 = 1 - beta2 ** state['step']
+                denom = (exp_avg_sq / bias2).sqrt().add_(group['eps'])
+                step_size = group['lr'] / bias1
+                p.addcdiv_(exp_avg, denom, value=-step_size)
+            else:
+                # Fused update: weight_decay -> momentum -> bias_correction -> param_update
+                adamw_step_fused(
+                    p, grad, exp_avg, exp_avg_sq,
+                    self._adamw_step_t, self._adamw_lr_t, self._adamw_beta1_t,
+                    self._adamw_beta2_t, self._adamw_eps_t, self._adamw_wd_t,
+                )
 
     def _step_muon(self, group: dict) -> None:
         """
