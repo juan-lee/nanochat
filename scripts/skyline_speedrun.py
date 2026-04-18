@@ -52,6 +52,7 @@ def main():
         env_line("ENABLE_FP8", args.enable_fp8),
         env_line("NANOCHAT_DISABLE_COMPILE", "1"),
         env_line("NANOCHAT_DISABLE_FUSED_OPTIM", "1"),
+        env_line("NANOCHAT_DISABLE_MUON", "1"),
         env_line("BASE_EXTRA_ARGS", " ".join(args.base_extra_arg)),
         env_line("BASE_EVAL_EXTRA_ARGS", " ".join(args.base_eval_extra_arg)),
         env_line("SFT_EXTRA_ARGS", " ".join(args.sft_extra_arg)),
