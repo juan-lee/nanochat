@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential git curl ca-certificates tini && \
     rm -rf /var/lib/apt/lists/*
 
-RUN python3 -m pip install --break-system-packages --upgrade pip uv
+RUN python3 -m pip install --break-system-packages uv
 
 WORKDIR /workspace
 
