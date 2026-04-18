@@ -1,4 +1,4 @@
-FROM pytorch/pytorch:2.9.1-cuda12.8-cudnn9-runtime
+FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PIP_NO_CACHE_DIR=1 \
@@ -6,8 +6,11 @@ ENV DEBIAN_FRONTEND=noninteractive \
     OMP_NUM_THREADS=1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git curl ca-certificates tini && \
+    python3 python3-pip python3-venv python3-dev \
+    build-essential git curl ca-certificates tini && \
     rm -rf /var/lib/apt/lists/*
+
+RUN python3 -m pip install --break-system-packages --upgrade pip uv
 
 WORKDIR /workspace
 
@@ -18,7 +21,7 @@ COPY runs ./runs
 COPY tasks ./tasks
 COPY dev ./dev
 
-RUN pip install --upgrade pip && pip install uv && uv sync --extra gpu
+RUN uv venv .venv && . .venv/bin/activate && uv sync --extra gpu
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["bash"]

@@ -2,7 +2,7 @@ name: build-container
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master, main ]
   workflow_dispatch:
 
 permissions:
@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
       - uses: docker/login-action@v3
@@ -24,6 +24,7 @@ jobs:
         with:
           context: .
           push: true
+          platforms: linux/arm64
           tags: |
             ghcr.io/${{ github.repository_owner }}/nanochat:latest
             ghcr.io/${{ github.repository_owner }}/nanochat:${{ github.sha }}
