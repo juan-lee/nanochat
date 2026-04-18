@@ -14,7 +14,6 @@ python -m scripts.skyline_speedrun \
   --sft-device-batch-size 2 \
   --enable-fp8 0 \
   --pretrain-total-shards 24 \
-  --base-extra-arg='--window-pattern=L' \
   --base-extra-arg='--core-metric-every=-1' \
   --base-extra-arg='--sample-every=-1' \
   --base-extra-arg='--eval-every=250' \

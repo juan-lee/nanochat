@@ -243,7 +243,12 @@ def disable_fp8(model):
 # Compile the model
 
 orig_model = model # original, uncompiled model, for saving raw model state_dict and for inference/evaluation (because the shapes may change shape)
-model = torch.compile(model, dynamic=False) # the inputs to model will never change shape so dynamic=False is safe
+compile_enabled = os.environ.get("NANOCHAT_DISABLE_COMPILE", "0") not in {"1", "true", "yes"}
+if compile_enabled:
+    model = torch.compile(model, dynamic=False) # the inputs to model will never change shape so dynamic=False is safe
+else:
+    print0("WARNING: torch.compile disabled via NANOCHAT_DISABLE_COMPILE")
+
 
 # -----------------------------------------------------------------------------
 # Scaling laws and muP extrapolations to determine the optimal training horizon, batch size, learning rates, weight decay.
