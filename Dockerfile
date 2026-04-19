@@ -7,8 +7,15 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 python3-pip python3-venv python3-dev \
-    build-essential git curl ca-certificates tini && \
+    build-essential git curl ca-certificates tini wget gnupg && \
     rm -rf /var/lib/apt/lists/*
+
+RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/arm64/cuda-keyring_1.1-1_all.deb && \
+    dpkg -i cuda-keyring_1.1-1_all.deb && \
+    rm cuda-keyring_1.1-1_all.deb && \
+    apt-get update && apt-get install -y --no-install-recommends cuda-nvcc-13-0 && \
+    rm -rf /var/lib/apt/lists/* && \
+    ln -sf /usr/local/cuda-13.0 /usr/local/cuda
 
 RUN python3 -m pip install --break-system-packages uv
 
