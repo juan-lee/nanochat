@@ -10,13 +10,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential git curl ca-certificates tini wget gnupg && \
     rm -rf /var/lib/apt/lists/*
 
-RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/arm64/cuda-keyring_1.1-1_all.deb && \
-    dpkg -i cuda-keyring_1.1-1_all.deb && \
-    rm cuda-keyring_1.1-1_all.deb && \
-    printf 'deb [signed-by=/usr/share/keyrings/cuda-archive-keyring.gpg] https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/arm64/ /\n' > /etc/apt/sources.list.d/cuda.list && \
-    rm -f /etc/apt/sources.list.d/cuda.list && \
-    apt-get update && apt-get install -y --no-install-recommends cuda-compiler-13-0 && \
-    rm -rf /var/lib/apt/lists/* && \
+COPY docker-assets/ptxas-arm64 /usr/local/cuda-13.0/bin/ptxas
+RUN mkdir -p /usr/local/cuda-13.0/bin && \
+    chmod 0755 /usr/local/cuda-13.0/bin/ptxas && \
     ln -sf /usr/local/cuda-13.0 /usr/local/cuda
 
 RUN python3 -m pip install --break-system-packages uv
