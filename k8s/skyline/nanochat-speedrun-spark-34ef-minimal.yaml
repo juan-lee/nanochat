@@ -1,0 +1,68 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: nanochat-speedrun-spark-34ef-minimal
+  namespace: default
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: Never
+      runtimeClassName: nvidia
+      nodeSelector:
+        kubernetes.io/hostname: spark-34ef
+        skyline.ai/gpu: 'true'
+      tolerations:
+      - effect: NoSchedule
+        key: nvidia.com/gpu
+        operator: Equal
+        value: 'true'
+      volumes:
+      - hostPath:
+          path: /var/lib/skyline/nanochat/nanochat-speedrun-spark-34ef-minimal
+          type: DirectoryOrCreate
+        name: artifacts
+      - emptyDir:
+          medium: Memory
+          sizeLimit: 16Gi
+        name: dshm
+      containers:
+      - name: speedrun
+        image: ghcr.io/juan-lee/nanochat:latest
+        imagePullPolicy: Always
+        workingDir: /workspace
+        env:
+        - name: OMP_NUM_THREADS
+          value: '1'
+        - name: NANOCHAT_BASE_DIR
+          value: /artifacts/cache
+        - name: NPROC_PER_NODE
+          value: '1'
+        - name: BASE_DEPTH
+          value: '12'
+        command:
+        - bash
+        - -lc
+        args:
+        - 'set -euo pipefail
+
+          mkdir -p /artifacts/cache /artifacts/output
+
+          bash runs/speedrun.sh 2>&1 | tee /artifacts/output/speedrun.log
+
+          '
+        resources:
+          limits:
+            cpu: '16'
+            memory: 96Gi
+            nvidia.com/gpu: '1'
+          requests:
+            cpu: '16'
+            memory: 96Gi
+            nvidia.com/gpu: '1'
+        volumeMounts:
+        - mountPath: /artifacts
+          name: artifacts
+        - mountPath: /dev/shm
+          name: dshm

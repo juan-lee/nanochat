@@ -96,7 +96,6 @@ def main():
                             set -euo pipefail
                             mkdir -p /artifacts/cache /artifacts/output
                             bash runs/speedrun.sh 2>&1 | tee /artifacts/output/speedrun.log
-                            python -m scripts.chat_cli -p \"What is the capital of France?\" 2>&1 | tee /artifacts/output/france.txt
                         """).strip()],
                         "resources": {
                             "requests": {"cpu": args.cpu, "memory": args.memory, "nvidia.com/gpu": args.gpu_count},
