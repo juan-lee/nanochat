@@ -26,7 +26,7 @@ COPY runs ./runs
 COPY tasks ./tasks
 COPY dev ./dev
 
-RUN uv venv .venv && . .venv/bin/activate && uv sync --extra gpu
+RUN uv venv .venv && . .venv/bin/activate && uv sync --extra gpu --extra ray
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["bash"]
