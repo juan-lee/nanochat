@@ -100,3 +100,7 @@ torchrun --standalone --nproc_per_node="$NPROC_PER_NODE" -m scripts.chat_eval --
     $CHAT_EVAL_EXTRA_ARGS
 
 python -m nanochat.report generate
+
+# -----------------------------------------------------------------------------
+# Smoke test the chat checkpoint while the venv is still active.
+python -m scripts.chat_cli -p "What is the capital of France?"

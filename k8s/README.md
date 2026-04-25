@@ -32,3 +32,12 @@ Artifacts and logs land on the selected GPU node under:
 ```text
 /var/lib/skyline/nanochat/<job-name>
 ```
+
+## Last minimal two-Spark run
+
+The manifests from the 2026-04-23/24 minimal two-Spark run are saved under `k8s/skyline/`:
+
+- `nanochat-speedrun-spark-34b0-minimal.yaml`
+- `nanochat-speedrun-spark-34ef-minimal.yaml`
+
+These preserve the node-specific hostPath artifact locations and the minimal environment used for that run. The post-run chat smoke test now lives inside `runs/speedrun.sh`, where the uv virtualenv is still active, instead of being appended by the Kubernetes wrapper.
