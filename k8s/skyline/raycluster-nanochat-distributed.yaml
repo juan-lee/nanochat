@@ -16,7 +16,7 @@ spec:
           kubernetes.io/arch: amd64
         containers:
         - name: ray-head
-          image: ghcr.io/juan-lee/nanochat:ray-head-py3123-ray2521-REPLACE_WITH_SHA
+          image: ghcr.io/juan-lee/nanochat:ray-head-py3123-ray2521-d1194ff12b62054d6c3b98c682677f003e6f9844
           imagePullPolicy: IfNotPresent
           securityContext:
             capabilities:
@@ -47,7 +47,7 @@ spec:
           effect: NoSchedule
         containers:
         - name: ray-worker
-          image: ghcr.io/juan-lee/nanochat:REPLACE_WITH_SHA
+          image: ghcr.io/juan-lee/nanochat:d1194ff12b62054d6c3b98c682677f003e6f9844
           imagePullPolicy: IfNotPresent
           command:
           - /usr/bin/tini
@@ -89,7 +89,7 @@ spec:
           effect: NoSchedule
         containers:
         - name: ray-worker
-          image: ghcr.io/juan-lee/nanochat:REPLACE_WITH_SHA
+          image: ghcr.io/juan-lee/nanochat:d1194ff12b62054d6c3b98c682677f003e6f9844
           imagePullPolicy: IfNotPresent
           command:
           - /usr/bin/tini
