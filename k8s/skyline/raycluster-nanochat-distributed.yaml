@@ -1,0 +1,157 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nanochat-runs-rwx
+  namespace: default
+spec:
+  accessModes:
+  - ReadWriteMany
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 200Gi
+---
+apiVersion: ray.io/v1
+kind: RayCluster
+metadata:
+  name: nanochat-ray-smoke-pinned
+  namespace: default
+  labels:
+    rayjob-target: nanochat
+spec:
+  rayVersion: 2.52.1
+  headGroupSpec:
+    rayStartParams:
+      dashboard-host: 0.0.0.0
+    template:
+      spec:
+        nodeSelector:
+          kubernetes.io/arch: amd64
+        containers:
+        - name: ray-head
+          image: ghcr.io/juan-lee/nanochat:ray-head-py3123-ray2521-d1194ff12b62054d6c3b98c682677f003e6f9844
+          imagePullPolicy: IfNotPresent
+          env:
+          - name: NANOCHAT_RUNS_DIR
+            value: /mnt/nanochat-runs
+          volumeMounts:
+          - name: nanochat-runs
+            mountPath: /mnt/nanochat-runs
+          securityContext:
+            capabilities:
+              add:
+              - SYS_PTRACE
+          resources:
+            requests:
+              cpu: "1"
+              memory: 4Gi
+            limits:
+              cpu: "2"
+              memory: 8Gi
+        volumes:
+        - name: nanochat-runs
+          persistentVolumeClaim:
+            claimName: nanochat-runs-rwx
+  workerGroupSpecs:
+  - groupName: spark-34b0
+    replicas: 1
+    minReplicas: 1
+    maxReplicas: 1
+    rayStartParams: {}
+    template:
+      spec:
+        runtimeClassName: nvidia
+        nodeSelector:
+          kubernetes.io/hostname: spark-34b0
+          skyline.ai/gpu-stack: operator
+        tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+        containers:
+        - name: ray-worker
+          image: ghcr.io/juan-lee/nanochat:d1194ff12b62054d6c3b98c682677f003e6f9844
+          imagePullPolicy: IfNotPresent
+          command:
+          - /usr/bin/tini
+          - --
+          args:
+          - bash
+          - -lc
+          - source /workspace/.venv/bin/activate && ray start --address=nanochat-ray-smoke-pinned-head-svc.default.svc.cluster.local:6379 --block
+          env:
+          - name: PATH
+            value: /workspace/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+          - name: NANOCHAT_RUNS_DIR
+            value: /mnt/nanochat-runs
+          volumeMounts:
+          - name: nanochat-runs
+            mountPath: /mnt/nanochat-runs
+          securityContext:
+            capabilities:
+              add:
+              - SYS_PTRACE
+          resources:
+            requests:
+              cpu: "2"
+              memory: 8Gi
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "4"
+              memory: 16Gi
+              nvidia.com/gpu: "1"
+        volumes:
+        - name: nanochat-runs
+          persistentVolumeClaim:
+            claimName: nanochat-runs-rwx
+  - groupName: spark-34ef
+    replicas: 1
+    minReplicas: 1
+    maxReplicas: 1
+    rayStartParams: {}
+    template:
+      spec:
+        runtimeClassName: nvidia
+        nodeSelector:
+          kubernetes.io/hostname: spark-34ef
+          skyline.ai/gpu-stack: operator
+        tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+        containers:
+        - name: ray-worker
+          image: ghcr.io/juan-lee/nanochat:d1194ff12b62054d6c3b98c682677f003e6f9844
+          imagePullPolicy: IfNotPresent
+          command:
+          - /usr/bin/tini
+          - --
+          args:
+          - bash
+          - -lc
+          - source /workspace/.venv/bin/activate && ray start --address=nanochat-ray-smoke-pinned-head-svc.default.svc.cluster.local:6379 --block
+          env:
+          - name: PATH
+            value: /workspace/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+          - name: NANOCHAT_RUNS_DIR
+            value: /mnt/nanochat-runs
+          volumeMounts:
+          - name: nanochat-runs
+            mountPath: /mnt/nanochat-runs
+          securityContext:
+            capabilities:
+              add:
+              - SYS_PTRACE
+          resources:
+            requests:
+              cpu: "2"
+              memory: 8Gi
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "4"
+              memory: 16Gi
+              nvidia.com/gpu: "1"
+        volumes:
+        - name: nanochat-runs
+          persistentVolumeClaim:
+            claimName: nanochat-runs-rwx

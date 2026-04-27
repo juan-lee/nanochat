@@ -2,7 +2,18 @@ name: build-container
 
 on:
   push:
-    branches: [ master, main ]
+    branches: [ master, main, feat/ray-nanochat ]
+    paths:
+      - Dockerfile
+      - docker-assets/**
+      - pyproject.toml
+      - uv.lock
+      - nanochat/**
+      - scripts/**
+      - runs/**
+      - tasks/**
+      - dev/**
+      - .github/workflows/container.yml
   workflow_dispatch:
 
 permissions:

@@ -7,7 +7,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 python3-pip python3-venv python3-dev \
-    build-essential git curl ca-certificates tini wget gnupg && \
+    build-essential git curl ca-certificates tini wget gnupg procps && \
     rm -rf /var/lib/apt/lists/*
 
 COPY docker-assets/ptxas-arm64 /usr/local/cuda-13.0/bin/ptxas
@@ -26,7 +26,11 @@ COPY runs ./runs
 COPY tasks ./tasks
 COPY dev ./dev
 
-RUN uv venv .venv && . .venv/bin/activate && uv sync --extra gpu
+RUN uv venv .venv && \
+    . .venv/bin/activate && \
+    uv sync --extra gpu --extra ray && \
+    chown root:root /workspace/.venv/bin/py-spy && \
+    chmod 4755 /workspace/.venv/bin/py-spy
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["bash"]
