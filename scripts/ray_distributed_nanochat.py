@@ -70,11 +70,14 @@ class RankActor:
             "log": log_path,
         }
 
-    def ensure_workspace(self, run_dir: str, fresh: bool) -> dict:
-        workdir = f"{run_dir}/workspace"
-        cache_dir = f"{run_dir}/cache"
+    def remove_path(self, path: str) -> dict:
+        subprocess.run(f"rm -rf {shlex.quote(path)}", shell=True, check=True)
+        return {"rank": self.rank, "removed": path}
+
+    def ensure_workspace(self, run_root: str, cache_dir: str, fresh: bool) -> dict:
+        workdir = f"{run_root}/workspace"
         if fresh:
-            subprocess.run(f"rm -rf {shlex.quote(workdir)} {shlex.quote(cache_dir)}", shell=True, check=True)
+            subprocess.run(f"rm -rf {shlex.quote(workdir)}", shell=True, check=True)
         Path(workdir).mkdir(parents=True, exist_ok=True)
         Path(cache_dir).mkdir(parents=True, exist_ok=True)
         if not Path(workdir, "pyproject.toml").exists():
@@ -156,7 +159,11 @@ def main():
     parser.add_argument("--total-shards", type=int, default=170)
     parser.add_argument("--num-ranks", type=int, default=2)
     parser.add_argument("--master-port", type=int, default=29513)
+    parser.add_argument("--run-root", help="Per-rank scratch root for workspace/venv/compile cache. Defaults to /tmp/<run-id>.")
+    parser.add_argument("--cache-dir", help="Durable NANOCHAT_BASE_DIR for checkpoints, reports, and nanochat cache. Defaults to <run-root>/cache.")
+    parser.add_argument("--log-dir", help="Directory for per-actor logs. Defaults to <run-root>.")
     parser.add_argument("--fresh", action="store_true")
+    parser.add_argument("--skip-prep", action="store_true", help="Skip report reset, dataset/tokenizer prep, and tokenizer eval when resuming from an existing run dir.")
     parser.add_argument("--skip-base-train", action="store_true")
     parser.add_argument("--skip-base-eval", action="store_true")
     parser.add_argument("--skip-chat-sft", action="store_true")
@@ -182,16 +189,23 @@ def main():
     args = parser.parse_args()
 
     ray.init(address="auto")
-    run_dir = f"/tmp/{args.run_id}"
+    run_root = args.run_root or f"/tmp/{args.run_id}"
+    cache_dir = args.cache_dir or f"{run_root}/cache"
+    log_dir = args.log_dir or run_root
+
     actors = [RankActor.remote(i) for i in range(args.num_ranks)]
     infos = ray.get([a.info.remote() for a in actors])
     print(f"Actors: {infos}", flush=True)
+    print(f"Paths: run_root={run_root} cache_dir={cache_dir} log_dir={log_dir}", flush=True)
     master_addr = infos[0]["ip"]
 
-    setup = ray.get([a.ensure_workspace.remote(run_dir, args.fresh) for a in actors])
+    if args.fresh:
+        # cache_dir may be an RWX mount shared by all ranks; clear it once from rank 0.
+        print(ray.get(actors[0].remove_path.remote(cache_dir)), flush=True)
+
+    setup = ray.get([a.ensure_workspace.remote(run_root, cache_dir, args.fresh) for a in actors])
     workdirs = [s["workdir"] for s in setup]
-    cache_dir = f"{run_dir}/cache"
-    logs = [f"{run_dir}/actor-{info['hostname']}.log" for info in infos]
+    logs = [f"{log_dir}/actor-{info['hostname']}.log" for info in infos]
 
     env = {
         "NANOCHAT_BASE_DIR": cache_dir,
@@ -209,11 +223,12 @@ def main():
         logs,
     )
 
-    run_phase(actors, "report_reset", lambda i: "bash -lc 'source .venv/bin/activate && python -m nanochat.report reset'", workdirs, env, logs)
-    run_phase(actors, "dataset8", lambda i: "bash -lc 'source .venv/bin/activate && python -m nanochat.dataset -n 8'", workdirs, env, logs)
-    run_phase(actors, "dataset_total", lambda i: f"bash -lc 'source .venv/bin/activate && python -m nanochat.dataset -n {args.total_shards}'", workdirs, env, logs)
-    run_phase(actors, "tok_train", lambda i: "bash -lc 'source .venv/bin/activate && python -m scripts.tok_train'", workdirs, env, logs)
-    run_phase(actors, "tok_eval", lambda i: "bash -lc 'source .venv/bin/activate && python -m scripts.tok_eval'", workdirs, env, logs)
+    if not args.skip_prep:
+        run_phase(actors, "report_reset", lambda i: "bash -lc 'source .venv/bin/activate && python -m nanochat.report reset'", workdirs, env, logs)
+        run_phase(actors, "dataset8", lambda i: "bash -lc 'source .venv/bin/activate && python -m nanochat.dataset -n 8'", workdirs, env, logs)
+        run_phase(actors, "dataset_total", lambda i: f"bash -lc 'source .venv/bin/activate && python -m nanochat.dataset -n {args.total_shards}'", workdirs, env, logs)
+        run_phase(actors, "tok_train", lambda i: "bash -lc 'source .venv/bin/activate && python -m scripts.tok_train'", workdirs, env, logs)
+        run_phase(actors, "tok_eval", lambda i: "bash -lc 'source .venv/bin/activate && python -m scripts.tok_eval'", workdirs, env, logs)
 
     model_tag = f"d{args.depth}"
     base_ckpt = f"{cache_dir}/base_checkpoints/{model_tag}"
@@ -318,7 +333,7 @@ def main():
             [logs[0]],
         )
 
-    print(f"Done. run_dir={run_dir} logs={logs}", flush=True)
+    print(f"Done. run_root={run_root} cache_dir={cache_dir} log_dir={log_dir} logs={logs}", flush=True)
 
 
 if __name__ == "__main__":

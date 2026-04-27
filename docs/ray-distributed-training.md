@@ -88,6 +88,91 @@ ray job submit \
     --skip-report
 ```
 
+
+## Durable run state with Longhorn RWX
+
+Long-running validation runs should not rely on pod-local `/tmp` for state that
+must survive pod restarts or KubeRay reconciliation. The Skyline manifest defines
+a Longhorn RWX PVC named `nanochat-runs-rwx` and mounts it at:
+
+```text
+/mnt/nanochat-runs
+```
+
+Use local scratch for per-rank workspace/venv/compile cache and the RWX mount for
+checkpoints, reports, and logs:
+
+```text
+/tmp/<run-id>/workspace                         # local scratch per worker
+/mnt/nanochat-runs/<run-id>/cache              # durable NANOCHAT_BASE_DIR
+/mnt/nanochat-runs/<run-id>/logs               # durable per-actor logs
+```
+
+The driver exposes these path controls:
+
+- `--run-root`: per-rank scratch root; defaults to `/tmp/<run-id>`.
+- `--cache-dir`: durable `NANOCHAT_BASE_DIR`; defaults to `<run-root>/cache`.
+- `--log-dir`: durable actor log directory; defaults to `<run-root>`.
+- `--skip-prep`: skip report reset, dataset/tokenizer prep, and tokenizer eval
+  when resuming a run from existing durable state.
+
+Example durable base validation run:
+
+```bash
+RUN_ID=ray-ddp-depth12-$(date -u +%Y%m%d-%H%M%S)
+ray job submit \
+  --address http://127.0.0.1:8265 \
+  --submission-id ${RUN_ID}-baseeval-sample \
+  --working-dir . \
+  --entrypoint-num-cpus 1 \
+  --no-wait \
+  -- python scripts/ray_distributed_nanochat.py \
+    --run-id "$RUN_ID" \
+    --run-root "/tmp/$RUN_ID" \
+    --cache-dir "/mnt/nanochat-runs/$RUN_ID/cache" \
+    --log-dir "/mnt/nanochat-runs/$RUN_ID/logs" \
+    --fresh \
+    --depth 12 \
+    --target-ratio 8 \
+    --device-batch-size 16 \
+    --total-shards 170 \
+    --master-port 29613 \
+    --base-eval sample \
+    --base-eval-split-tokens 524288 \
+    --skip-chat-sft \
+    --skip-chat-eval \
+    --skip-report
+```
+
+Example continuation from the same durable base checkpoint into chat SFT/eval:
+
+```bash
+ray job submit \
+  --address http://127.0.0.1:8265 \
+  --submission-id ${RUN_ID}-chat-resume \
+  --working-dir . \
+  --entrypoint-num-cpus 1 \
+  --no-wait \
+  -- python scripts/ray_distributed_nanochat.py \
+    --run-id "$RUN_ID" \
+    --run-root "/tmp/$RUN_ID" \
+    --cache-dir "/mnt/nanochat-runs/$RUN_ID/cache" \
+    --log-dir "/mnt/nanochat-runs/$RUN_ID/logs" \
+    --depth 12 \
+    --target-ratio 8 \
+    --device-batch-size 16 \
+    --total-shards 170 \
+    --master-port 29713 \
+    --skip-prep \
+    --skip-base-train \
+    --skip-base-eval
+```
+
+Longhorn RWX is NFS-backed. It is a good fit for durable checkpoints, reports,
+and logs. Keep the uploaded Ray working directory, venv, Torch compile cache, and
+other hot scratch data on local disk unless profiling shows shared storage is
+fast enough.
+
 ## Checkpoint locality fix
 
 Distributed nanochat training writes the global model checkpoint from distributed rank 0 only. Optimizer state is rank-local.
